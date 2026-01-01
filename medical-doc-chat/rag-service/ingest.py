@@ -1,40 +1,98 @@
+import argparse
+import json
+from pathlib import Path
+from typing import Iterable, List, TypedDict
+
 import faiss
-import pickle
 import numpy as np
-from sentence_transformers import SentenceTransformer
+import pickle
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
 
-# 1. Configuration
-EMBED_MODEL = "all-mpnet-base-v2"
-docs_to_ingest = [
-    {"id": "doc_1", "title": "Diabetes Care", "text": "Diabetes requires regular blood sugar monitoring to understand treatment effectiveness, make timely diet/exercise/medication adjustments, and prevent dangerous highs (hyperglycemia) or lows (hypoglycemia), ultimately reducing long-term complications like nerve or kidney damage. This self-monitoring, using fingersticks or continuous glucose monitors (CGM), provides crucial data to keep glucose levels in a target range, guiding daily management for better health outcomes, especially for those on insulin. "},
-    {"id": "doc_2", "title": "Heart Health", "text": "smoking and high cholesterol significantly increase heart disease risk by damaging blood vessels, promoting plaque buildup (atherosclerosis), thickening blood, and raising blood pressure, leading to heart attacks and strokes, with smoking worsening lipid profiles (lowering good HDL, raising bad LDL/triglycerides) and combining with high cholesterol to drastically escalate dangers. Quitting smoking dramatically cuts this risk over time, and managing cholesterol with diet, exercise, and medication is crucial. "}
-]
+from app.config import get_settings
+from app.logging_utils import configure_logging, get_logger
 
-model = SentenceTransformer(EMBED_MODEL)
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+logger = get_logger(__name__)
 
-processed_chunks = []
-raw_texts = []
 
-# 2. Processing
-for doc in docs_to_ingest:
-    chunks = text_splitter.split_text(doc["text"])
-    for chunk in chunks:
-        processed_chunks.append({
-            "document_id": doc["id"],
-            "text": chunk
-        })
-        raw_texts.append(chunk)
+class Document(TypedDict):
+    id: str
+    title: str
+    text: str
 
-# 3. Vectorization
-vectors = model.encode(raw_texts).astype("float32")
-index = faiss.IndexFlatL2(vectors.shape[1])
-index.add(vectors)
 
-# 4. Persistence
-faiss.write_index(index, "index.faiss")
-with open("docs.pkl", "wb") as f:
-    pickle.dump(processed_chunks, f)
+def load_documents(path: Path | None) -> List[Document]:
+    if not path:
+        return [
+            {
+                "id": "doc_1",
+                "title": "Diabetes Care",
+                "text": "Diabetes requires regular blood sugar monitoring to understand treatment effectiveness, make timely diet/exercise/medication adjustments, and prevent dangerous highs (hyperglycemia) or lows (hypoglycemia).",
+            },
+            {
+                "id": "doc_2",
+                "title": "Heart Health",
+                "text": "Smoking and high cholesterol significantly increase heart disease risk by damaging blood vessels and promoting plaque buildup (atherosclerosis).",
+            },
+        ]
 
-print(f"✅ Ingested {len(processed_chunks)} chunks from {len(docs_to_ingest)} docs.")
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, list):
+        raise ValueError("Documents file must contain a list of objects.")
+    return data  # type: ignore[return-value]
+
+
+def chunk_documents(docs: Iterable[Document]) -> List[Document]:
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    chunks: List[Document] = []
+    for doc in docs:
+        for chunk in splitter.split_text(doc["text"]):
+            chunks.append({"id": doc["id"], "title": doc["title"], "text": chunk})
+    return chunks
+
+
+def ingest(docs: List[Document]) -> None:
+    settings = get_settings()
+    model = SentenceTransformer(settings.embedding_model)
+
+    chunks = chunk_documents(docs)
+    if not chunks:
+        raise ValueError("No chunks to ingest.")
+
+    raw_texts = [c["text"] for c in chunks]
+    vectors = model.encode(raw_texts).astype("float32")
+    index = faiss.IndexFlatL2(vectors.shape[1])
+    index.add(vectors)
+
+    logger.info("Writing index to %s", settings.index_path)
+    faiss.write_index(index, str(settings.index_path))
+
+    doc_store = [
+        {"document_id": c["id"], "text": c["text"], "title": c["title"]}
+        for c in chunks
+    ]
+
+    logger.info("Writing document store to %s", settings.docs_path)
+    with open(settings.docs_path, "wb") as f:
+        pickle.dump(doc_store, f)
+
+    logger.info("Ingested %s chunks from %s documents.", len(chunks), len(docs))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Ingest documents into FAISS index.")
+    parser.add_argument(
+        "--docs",
+        type=Path,
+        help="Path to JSON list of documents (objects with id, title, text).",
+    )
+    args = parser.parse_args()
+
+    configure_logging()
+    docs = load_documents(args.docs)
+    ingest(docs)
+
+
+if __name__ == "__main__":
+    main()

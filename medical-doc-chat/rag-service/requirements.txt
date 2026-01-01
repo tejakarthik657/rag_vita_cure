@@ -2,6 +2,10 @@ fastapi
 uvicorn
 sentence-transformers
 faiss-cpu
-requests
 langchain-text-splitters
 pydantic
+pydantic-settings
+httpx
+anyio
+pytest
+pytest-asyncio
