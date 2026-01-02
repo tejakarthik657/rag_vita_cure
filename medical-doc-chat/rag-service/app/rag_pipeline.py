@@ -21,36 +21,38 @@ async def run_rag_pipeline(doc_id: str, question: str) -> Dict[str, object]:
 
     # 2) Retrieve
     retrieved = await search_context(query_vec, doc_id)
+    
+    # DEBUG: Print retrieval info
+    print(f"--- DEBUG ---")
+    print(f"Searching for Doc ID: {doc_id}")
+    print(f"Chunks found: {len(retrieved)}")
+    for chunk, score in retrieved:
+        print(f"Score: {score:.4f} | Chunk: {chunk['text'][:100]}...")
+    print(f"-------------")
+    
     if not retrieved:
-        return {"answer": "No relevant information found for this document.", "sources_used": 0}
+        return {
+            "answer": "The selected document does not contain information regarding that specific query.",
+            "sources_used": 0
+        }
 
-    context_lines: List[str] = []
-    citations: List[str] = []
-    for idx, (chunk, score) in enumerate(retrieved, start=1):
-        context_lines.append(f"[{idx}] {chunk['text']}")
-        citations.append(f"[{idx}]")
+    # Build context from retrieved chunks
+    context_text = "\n".join([chunk["text"] for chunk, _ in retrieved])
 
-    context_block = "\n---\n".join(context_lines)
-    citation_list = " ".join(citations)
+    # Simplified, high-instruction prompt for Mistral-Nemo
+    prompt = f"""[INST] You are a medical assistant. Use the following CONTEXT to answer the QUESTION.
+If the answer is not in the context, say you don't know.
 
-    # 3) Prompt
-    prompt = f"""You are a concise medical document assistant.
-Use ONLY the provided context to answer the question.
-If the answer is not contained in the context, reply with "I don't know".
-Avoid diagnoses or prescriptions.
-Include citations from the provided context {citation_list}.
+CONTEXT:
+{context_text}
 
-Context:
-{context_block}
-
-Question:
-{question}
-"""
+QUESTION:
+{question} [/INST]"""
 
     # 4) Generate
     raw_answer = await generate_answer(prompt)
 
     return {
-        "answer": raw_answer + MEDICAL_DISCLAIMER,
+        "answer": f"{raw_answer}\n\n⚠️ DISCLAIMER: This is an AI-generated summary based on the selected document. Consult a medical professional.",
         "sources_used": len(retrieved),
     }

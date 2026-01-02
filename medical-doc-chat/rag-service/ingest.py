@@ -25,14 +25,14 @@ def load_documents(path: Path | None) -> List[Document]:
     if not path:
         return [
             {
-                "id": "doc_1",
-                "title": "Diabetes Care",
-                "text": "Diabetes requires regular blood sugar monitoring to understand treatment effectiveness, make timely diet/exercise/medication adjustments, and prevent dangerous highs (hyperglycemia) or lows (hypoglycemia).",
+                "id": "doc-1",
+                "title": "Hypertension Treatment Guidelines",
+                "text": "Hypertension, also known as high blood pressure, is a chronic medical condition where the force of blood against artery walls is consistently too high. Blood pressure is the pressure exerted by circulating blood on the walls of blood vessels. Normal blood pressure is below 120/80 mmHg, while hypertension is diagnosed at 130/80 mmHg or higher. Management includes lifestyle modifications such as reducing sodium intake, maintaining a healthy weight, engaging in regular physical activity, limiting alcohol consumption, and managing stress. Antihypertensive medications may be prescribed when lifestyle changes alone are insufficient. Regular monitoring and medical follow-up are essential for preventing complications such as heart disease, stroke, and kidney damage.",
             },
             {
-                "id": "doc_2",
-                "title": "Heart Health",
-                "text": "Smoking and high cholesterol significantly increase heart disease risk by damaging blood vessels and promoting plaque buildup (atherosclerosis).",
+                "id": "doc-2",
+                "title": "Heart Health and Diabetes Care",
+                "text": "The heart is a muscular organ that pumps blood throughout the body, delivering oxygen and nutrients to tissues and removing carbon dioxide and waste products. Maintaining heart health is crucial for overall well-being. Cardiovascular health is improved by engaging in at least 30 minutes of cardiovascular exercise daily, such as brisk walking, jogging, cycling, or swimming. Smoking is a primary risk factor that significantly increases the likelihood of heart failure, arterial disease, and atherosclerosis. Diabetes is a chronic condition that affects how your body turns food into energy, requiring regular blood sugar monitoring. Patients with diabetes are advised to eat leafy greens, whole grains, lean proteins, and avoid processed sugars to maintain blood glucose stability. Regular HbA1c testing every 3 months, annual foot examinations, and eye exams are essential components of comprehensive diabetes care.",
             },
         ]
 

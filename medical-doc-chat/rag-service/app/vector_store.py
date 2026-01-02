@@ -45,7 +45,6 @@ async def search_context(
 ) -> List[Tuple[Chunk, float]]:
     settings = get_settings()
     top_k = k or settings.retrieval_top_k
-    search_k = fetch_k or settings.retrieval_fetch_k
 
     index_path = settings.index_path.resolve()
     docs_path = settings.docs_path.resolve()
@@ -53,14 +52,18 @@ async def search_context(
     all_chunks = _load_chunks(docs_path)
 
     query = np.array([query_vec], dtype="float32")
-
+    
+    # Search ENTIRE index to ensure we never miss a chunk in small datasets
     def _search():
-        return index.search(query, search_k)
+        return index.search(query, index.ntotal)
 
     distances, indices = await anyio.to_thread.run_sync(_search)
 
     results: List[Tuple[Chunk, float]] = []
     for pos, idx in enumerate(indices[0]):
+        if idx == -1:  # FAISS empty result
+            continue
+            
         chunk: Chunk = all_chunks[idx]
         if chunk["document_id"] != doc_id:
             continue
@@ -73,5 +76,15 @@ async def search_context(
         results.append((chunk, score))
         if len(results) >= top_k:
             break
+
+    # SAFETY FALLBACK: If vector search found nothing, return all chunks from this doc
+    # This ensures V1 stability for small datasets
+    if not results:
+        logger.warning("Vector search returned no results for doc_id=%s, using fallback", doc_id)
+        for chunk in all_chunks:
+            if chunk["document_id"] == doc_id:
+                results.append((chunk, 0.5))  # Default score for fallback
+                if len(results) >= top_k:
+                    break
 
     return results
