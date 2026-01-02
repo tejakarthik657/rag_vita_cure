@@ -1,36 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, ChevronRight } from 'lucide-react';
-
-const documents = [
-  { id: "doc-1", title: "Hypertension Treatment Guidelines", desc: "Evidence-based recommendations for adult hypertension management." },
-  { id: "doc-2", title: "Heart Health and Diabetes Care", desc: "Cardiovascular wellness, exercise standards, and diabetes management." }
-];
+import { api } from '../api';
 
 export default function DocumentList() {
-  return (
-    <div className="app-container">
-      <header style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.8rem', color: '#0f172a' }}>Select a Medical Document</h1>
-        <p style={{ color: '#64748b' }}>Choose a reference below to start a grounded AI consultation.</p>
-      </header>
+  const [docs, setDocs] = useState([]);
 
-      <div className="doc-grid">
-        {documents.map(doc => (
-          <Link to={`/chat/${doc.id}`} key={doc.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div className="doc-card">
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.5rem' }}>
-                  <FileText size={20} color="#0284c7" />
-                  <h3 style={{ margin: 0 }}>{doc.title}</h3>
-                </div>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>{doc.desc}</p>
+  useEffect(() => {
+    api.getDocuments().then(res => setDocs(res.data));
+  }, []);
+
+  return (
+    <div className="bg-background-light dark:bg-background-dark min-h-screen">
+      <main className="max-w-7xl mx-auto px-8 py-10">
+        <h2 className="text-4xl font-bold mb-3">Select a Medical Document</h2>
+        <p className="text-slate-500 mb-10 text-lg">AI responses will be <span className="text-primary font-medium">strictly grounded</span> in your selection.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {docs.map(docId => (
+            <Link 
+              to={`/chat/${docId}`} 
+              key={docId}
+              className="bg-white dark:bg-surface-dark rounded-2xl shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 hover:ring-primary overflow-hidden transition-all group"
+            >
+              <div className="h-32 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <span className="material-symbols-outlined text-4xl text-slate-400">description</span>
               </div>
-              <ChevronRight size={20} color="#cbd5e1" />
-            </div>
-          </Link>
-        ))}
-      </div>
+              <div className="p-5">
+                <h3 className="font-bold text-lg group-hover:text-primary capitalize">{docId.replace(/_/g, ' ')}</h3>
+                <div className="mt-4 flex justify-between items-center border-t pt-4">
+                   <span className="text-xs text-green-600 font-bold">Verified Source</span>
+                   <span className="material-symbols-outlined text-primary">arrow_forward</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </main>
     </div>
   );
 }
