@@ -1,9 +1,11 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 
 from .config import Settings, get_settings
+from .ingest_logic import run_ingestion
 from .logging_utils import configure_logging, get_logger
 from .rag_pipeline import run_rag_pipeline
 
@@ -57,6 +59,36 @@ async def query_endpoint(
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("Query failed", extra={"doc_id": req.document_id})
         raise HTTPException(status_code=500, detail="Internal server error") from exc
+
+
+@app.post("/ingest")
+async def ingest():
+    """Re-ingest all documents from source_docs folder and rebuild FAISS index."""
+    try:
+        result = await run_ingestion()
+        return result
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.exception("Ingestion failed")
+        raise HTTPException(status_code=500, detail="Ingestion failed") from exc
+
+
+@app.get("/files")
+async def list_files():
+    """List all PDF documents available in the source_docs folder."""
+    folder = "./source_docs"
+    if not os.path.exists(folder):
+        return {"documents": []}
+    
+    try:
+        files = [
+            f.replace('.pdf', '') 
+            for f in os.listdir(folder) 
+            if f.endswith('.pdf')
+        ]
+        return {"documents": files}
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.exception("Failed to list files")
+        raise HTTPException(status_code=500, detail="Failed to list files") from exc
 
 
 if __name__ == "__main__":
