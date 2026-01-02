@@ -21,3 +21,5 @@ async def get_embedding(text: str) -> List[float]:
     model = _get_model()
     # Offload CPU-bound encoding to a worker thread to avoid blocking the event loop.
     return await anyio.to_thread.run_sync(lambda: model.encode(text).tolist())
+
+# there is no changes required in this file for the v2
