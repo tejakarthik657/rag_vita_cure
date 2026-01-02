@@ -1,95 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Send, AlertCircle, Info } from 'lucide-react';
+import { api } from '../api';
 
 export default function DocumentChat() {
   const { docId } = useParams();
-  const [question, setQuestion] = useState("");
-  const [chat, setChat] = useState([]);
+  const [messages, setMessages] = useState([
+    { role: 'ai', text: `Hello. I am ready to answer questions regarding "${docId.replace(/_/g, ' ')}".` }
+  ]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  const handleAsk = async () => {
-    if (!question.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
     
+    const userMsg = { role: 'user', text: input };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
     setLoading(true);
-    setError(null);
-    const userMsg = { role: 'user', text: question };
-    setChat([...chat, userMsg]);
 
     try {
-      const res = await fetch("http://localhost:4000/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: docId, question })
-      });
-      
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      setChat(prev => [...prev, { role: 'ai', text: data.answer }]);
-      setQuestion("");
+      const res = await api.chat(docId, input);
+      setMessages(prev => [...prev, { role: 'ai', text: res.data.answer }]);
     } catch (err) {
-      setError("We couldn't connect to the medical knowledge base. Please try again.");
+      setMessages(prev => [...prev, { role: 'ai', text: "Error: Could not reach knowledge base." }]);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="app-container">
-      <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: '#64748b', marginBottom: '1rem', fontSize: '0.9rem' }}>
-        <ArrowLeft size={16} /> Back to Documents
-      </Link>
-
-      <div className="chat-window">
-        <div className="chat-header">
-          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{docId.replace('_', ' ').toUpperCase()}</h2>
-          <span style={{ fontSize: '0.8rem', color: '#0284c7', fontWeight: 500 }}>
-            ● Grounded Analysis Active
-          </span>
+    <div className="h-screen flex flex-col bg-background-light dark:bg-background-dark font-body">
+      <header className="bg-white dark:bg-surface-dark p-6 border-b flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <Link to="/" className="material-symbols-outlined text-slate-400 hover:text-primary">arrow_back</Link>
+          <h1 className="text-xl font-bold capitalize">{docId.replace(/_/g, ' ')}</h1>
         </div>
+        <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full uppercase">Scoped Chat Active</span>
+      </header>
 
-        <div className="message-area">
-          {chat.length === 0 && !error && (
-            <div style={{ textAlign: 'center', marginTop: '4rem', color: '#94a3b8' }}>
-              <Info size={40} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-              <p>Ask a question specific to this document.<br/>The AI will only answer based on the provided text.</p>
+      <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-6">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-2xl p-4 rounded-xl shadow-sm ${m.role === 'user' ? 'bg-primary text-white' : 'bg-white dark:bg-surface-dark'}`}>
+              <p className="text-sm">{m.text}</p>
             </div>
-          )}
+          </div>
+        ))}
+        {loading && <div className="text-slate-400 animate-pulse text-sm">Assistant is searching document...</div>}
+      </div>
 
-          {error && (
-            <div style={{ background: '#fff1f2', padding: '1rem', borderRadius: '8px', color: '#be123c', display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <AlertCircle size={20} />
-              <p style={{ margin: 0 }}>{error}</p>
-            </div>
-          )}
-
-          {chat.map((msg, i) => (
-            <div key={i} className={`message ${msg.role === 'ai' ? 'ai-message' : 'user-message'}`}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', color: '#94a3b8' }}>
-                {msg.role === 'ai' ? 'Medical Assistant' : 'Your Question'}
-              </div>
-              {msg.text}
-            </div>
-          ))}
-          {loading && <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Analyzing document...</p>}
-        </div>
-
-        <div className="disclaimer-bar">
-          This assistant does not provide medical diagnosis. Consult a medical professional.
-        </div>
-
-        <div className="input-area">
-          <input 
-            value={question} 
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask about this document..."
-            onKeyPress={(e) => e.key === 'Enter' && handleAsk()}
-          />
-          <button onClick={handleAsk} disabled={loading}>
-            {loading ? "..." : <Send size={18} />}
-          </button>
+      <div className="p-4 bg-white dark:bg-surface-dark border-t">
+        <div className="max-w-4xl mx-auto space-y-3">
+          <div className="flex gap-2">
+            <input 
+              className="flex-1 bg-slate-50 dark:bg-background-dark border-none rounded-xl p-4 text-white"
+              placeholder="Ask a question about this document..."
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
+            />
+            <button onClick={handleSend} className="bg-primary px-6 rounded-xl text-white">
+               <span className="material-symbols-outlined">send</span>
+            </button>
+          </div>
+          <div className="bg-amber-50 p-2 rounded text-center flex justify-center gap-2 items-center">
+            <span className="material-symbols-outlined text-amber-600 text-sm">warning</span>
+            <p className="text-[10px] text-amber-800 font-bold uppercase">No Medical Diagnosis Provided • Verified Context Only</p>
+          </div>
         </div>
       </div>
     </div>
