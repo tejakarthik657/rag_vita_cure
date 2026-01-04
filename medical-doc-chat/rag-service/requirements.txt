@@ -3,6 +3,7 @@ uvicorn
 sentence-transformers
 faiss-cpu
 langchain-text-splitters
+pypdf
 pydantic
 pydantic-settings
 httpx

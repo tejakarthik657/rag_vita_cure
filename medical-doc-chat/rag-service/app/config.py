@@ -13,7 +13,8 @@ class Settings(BaseSettings):
 
     ollama_url: str = Field("http://localhost:11434/api/generate")
     ollama_model: str = Field("mistral-nemo")
-    ollama_timeout_seconds: float = Field(30.0)
+    # Large models on CPU can take 30-60s; raise default timeout to avoid premature read timeouts.
+    ollama_timeout_seconds: float = Field(120.0)
     ollama_max_tokens: int = Field(512)
     ollama_temperature: float = Field(0.0)
     ollama_retry_attempts: int = Field(3)

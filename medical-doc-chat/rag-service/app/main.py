@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -75,14 +76,15 @@ async def ingest():
 @app.get("/files")
 async def list_files():
     """List all PDF documents available in the source_docs folder."""
-    folder = "./source_docs"
-    if not os.path.exists(folder):
+    base_dir = Path(__file__).resolve().parent.parent
+    folder = base_dir / "source_docs"
+    if not folder.exists():
         return {"documents": []}
-    
+
     try:
         files = [
-            f.replace('.pdf', '') 
-            for f in os.listdir(folder) 
+            f.replace('.pdf', '')
+            for f in os.listdir(folder)
             if f.endswith('.pdf')
         ]
         return {"documents": files}

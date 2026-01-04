@@ -1,62 +1,72 @@
 import express from 'express';
-import axios from 'axios';
 import cors from 'cors';
+import axios from 'axios';
+import multer from 'multer';
+import path from 'path';
 
 const app = express();
-const PORT = 4000;
-const PYTHON_SERVICE_URL = "http://localhost:8000/query";
-
-// Middleware
-app.use(cors()); // Critical: Allows React to communicate with Node
+app.use(cors());
 app.use(express.json());
 
-// 1. Health Check (Test this in your browser: http://localhost:4000/)
-app.get("/", (req, res) => {
-    res.json({ status: "Backend is running", documentation: "POST to /api/chat" });
+const PYTHON_URL = "http://localhost:8000";
+
+// 1. Admin Auth Middleware (Hardcoded V1)
+const adminAuth = (req, res, next) => {
+    const { username, password } = req.headers;
+    if (username === "admin" && password === "supersecure123") {
+        next();
+    } else {
+        res.status(401).json({ error: "Unauthorized" });
+    }
+};
+
+// 2. Multer Configuration (Save directly to Python's source folder)
+const storage = multer.diskStorage({
+    destination: "../rag-service/source_docs/",
+    filename: (req, file, cb) => cb(null, file.originalname)
+});
+const upload = multer({ storage });
+
+// --- ADMIN ROUTES ---
+
+// Upload File and trigger ingestion so the new doc appears in listings
+app.post("/api/admin/upload", adminAuth, upload.single("file"), async (req, res) => {
+    try {
+        const ingestResp = await axios.post(`${PYTHON_URL}/ingest`);
+        res.json({ message: "File uploaded and ingested", ingest: ingestResp.data });
+    } catch (err) {
+        console.error("Ingestion failed after upload", err);
+        res.status(502).json({ error: "Upload saved, but ingestion failed", detail: err?.message });
+    }
 });
 
-// 2. Chat Endpoint
+// Trigger Re-ingestion
+app.post("/api/admin/reingest", adminAuth, async (req, res) => {
+    const response = await axios.post(`${PYTHON_URL}/ingest`);
+    res.json(response.data);
+});
+
+// --- USER ROUTES ---
+
+// Get Dynamic Document List
+app.get("/api/documents", async (req, res) => {
+    try {
+        const response = await axios.get(`${PYTHON_URL}/files`);
+        res.json(response.data.documents); // Returns array of IDs
+    } catch (err) {
+        console.error("Failed to fetch documents from RAG service", err);
+        res.status(503).json({ error: "RAG service unavailable" });
+    }
+});
+
+// Chat (Existing)
 app.post("/api/chat", async (req, res) => {
     const { documentId, question } = req.body;
-
-    // Validation
-    if (!documentId || !question) {
-        return res.status(400).json({ error: "documentId and question are required" });
-    }
-
-    try {
-        console.log(`📩 Request received for ${documentId}: "${question}"`);
-
-        // Forward to Python RAG service
-        const response = await axios.post(PYTHON_SERVICE_URL, {
-            document_id: documentId,
-            question: question
-        });
-
-        console.log(`✅ Response received from Python Service`);
-        
-        // Return Python's answer to React
-        res.json(response.data);
-
-    } catch (error) {
-        console.error("❌ Gateway Error:");
-        
-        if (error.code === 'ECONNREFUSED') {
-            res.status(503).json({ 
-                error: "Python RAG Service is offline. Please start it on port 8000." 
-            });
-        } else {
-            res.status(500).json({ 
-                error: "Internal Server Error",
-                details: error.message 
-            });
-        }
-    }
+    const response = await axios.post(`${PYTHON_URL}/query`, {
+        document_id: documentId,
+        question: question
+    }, { timeout: 120000 }); // 120,000ms = 2 minutes for local LLM
+    res.json(response.data);
 });
 
-app.listen(PORT, () => {
-    console.log(`-----------------------------------------------`);
-    console.log(`🚀 GATEWAY: http://localhost:${PORT}`);
-    console.log(`🔗 RAG LINK: ${PYTHON_SERVICE_URL}`);
-    console.log(`-----------------------------------------------`);
-});
+app.listen(4000, () => console.log("Backend running on 4000"));

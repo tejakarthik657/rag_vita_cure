@@ -1,18 +1,19 @@
 import os
 import faiss
 import pickle
+from pathlib import Path
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# Pathing (assumes uvicorn runs from the rag-service root)
-SOURCE_DIR = "./source_docs"
-INDEX_PATH = "index.faiss"
-PKL_PATH = "docs.pkl"
+# Paths relative to project root, regardless of where uvicorn is launched
+BASE_DIR = Path(__file__).resolve().parent.parent
+SOURCE_DIR = BASE_DIR / "source_docs"
+INDEX_PATH = BASE_DIR / "index.faiss"
+PKL_PATH = BASE_DIR / "docs.pkl"
 
-def run_ingestion():
-    if not os.path.exists(SOURCE_DIR):
-        os.makedirs(SOURCE_DIR)
+async def run_ingestion():
+    SOURCE_DIR.mkdir(parents=True, exist_ok=True)
 
     model = SentenceTransformer("all-mpnet-base-v2")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=100)
@@ -26,7 +27,7 @@ def run_ingestion():
 
     for filename in files:
         doc_id = filename.replace(".pdf", "")
-        reader = PdfReader(os.path.join(SOURCE_DIR, filename))
+        reader = PdfReader(SOURCE_DIR / filename)
         
         full_text = ""
         for page in reader.pages:
@@ -43,7 +44,7 @@ def run_ingestion():
     index.add(vectors)
     
     # Save files
-    faiss.write_index(index, INDEX_PATH)
+    faiss.write_index(index, str(INDEX_PATH))
     with open(PKL_PATH, "wb") as f:
         pickle.dump(all_chunks, f)
 

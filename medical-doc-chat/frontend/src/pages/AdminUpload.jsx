@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../api';
+import { api } from '../api/api';
 
 export default function AdminUpload() {
   const [file, setFile] = useState(null);
   const [docs, setDocs] = useState([]);
   const [status, setStatus] = useState("idle"); // idle, uploading, indexing
+  const [error, setError] = useState("");
   const creds = JSON.parse(localStorage.getItem("admin_creds"));
 
   useEffect(() => { loadDocs(); }, []);
 
   const loadDocs = async () => {
-    const res = await api.getDocuments();
-    setDocs(res.data);
+    try {
+      const res = await api.getDocuments();
+      setDocs(res.data);
+      setError("");
+    } catch (err) {
+      console.error(err);
+      setError("Could not load documents. Ensure the RAG service is running.");
+    }
   };
 
   const handleProcess = async () => {
@@ -32,45 +39,67 @@ export default function AdminUpload() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-background-light dark:bg-background-dark font-display">
-      <main className="flex-1 max-w-[1200px] mx-auto p-8 flex flex-col gap-6">
-        <h2 className="text-4xl font-black tracking-tight">Document Management</h2>
-        
-        {/* Upload Box */}
-        <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-12 flex flex-col items-center bg-white dark:bg-surface-dark">
-          <span className="material-symbols-outlined text-primary text-[48px] mb-4">cloud_upload</span>
-          <p className="font-bold text-lg">{file ? file.name : "Select Medical PDF"}</p>
-          <input type="file" className="hidden" id="fileIn" onChange={e => setFile(e.target.files[0])} />
-          <div className="mt-6 flex gap-4">
-            <label htmlFor="fileIn" className="cursor-pointer bg-slate-100 dark:bg-slate-700 px-6 py-2 rounded-lg font-bold">Browse</label>
-            <button 
-              onClick={handleProcess}
-              disabled={!file || status !== "idle"}
-              className="bg-primary text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50"
-            >
-              {status === "idle" ? "Start Processing" : status === "uploading" ? "Uploading..." : "Indexing FAISS..."}
-            </button>
+    <div className="min-h-screen bg-slate-50 text-slate-800">
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-100">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <span className="text-xl font-bold tracking-tight text-slate-800">MediAssist <span className="text-indigo-500">Admin</span></span>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-6 py-10 flex flex-col gap-8">
+        <div className="space-y-2">
+          <h2 className="text-3xl font-bold text-slate-800">Document Management</h2>
+          <p className="text-slate-500 text-sm">Upload a PDF and ingest immediately.</p>
+        </div>
+
+        {error && (
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 text-rose-800 px-6 py-4 text-sm">
+            {error}
           </div>
+        )}
+
+        {/* Upload Box */}
+        <div className="border-2 border-dashed border-indigo-100 rounded-3xl p-10 bg-white hover:bg-indigo-50/30 transition-colors">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400">upload_file</span>
+                {file ? file.name : "Select a PDF"}
+              </p>
+              <p className="text-sm text-slate-400">Files save to the RAG source folder and ingest right after upload.</p>
+            </div>
+            <div className="flex gap-3">
+              <label htmlFor="fileIn" className="cursor-pointer px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-colors">Browse</label>
+              <button
+                onClick={handleProcess}
+                disabled={!file || status !== "idle"}
+                className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200"
+              >
+                {status === "idle" ? "Upload & Ingest" : status === "uploading" ? "Uploading..." : "Indexing..."}
+              </button>
+            </div>
+          </div>
+          <input type="file" className="hidden" id="fileIn" onChange={e => setFile(e.target.files[0])} />
         </div>
 
         {/* Table */}
-        <div className="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 dark:bg-slate-800 text-slate-400 text-sm">
+            <thead className="bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider font-bold border-b border-slate-100">
               <tr>
-                <th className="p-4">Document Name</th>
-                <th className="p-4">Status</th>
+                <th className="p-6">Document</th>
+                <th className="p-6">Status</th>
               </tr>
             </thead>
             <tbody>
               {docs.map(docId => (
-                <tr key={docId} className="border-t border-slate-100 dark:border-slate-700">
-                  <td className="p-4 flex items-center gap-3">
-                    <span className="material-symbols-outlined text-red-500">picture_as_pdf</span>
-                    {docId}.pdf
+                <tr key={docId} className="border-t border-slate-50 hover:bg-slate-50/80 transition-colors">
+                  <td className="p-6 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500"><span className="material-symbols-outlined text-xl">description</span></div>
+                    <span className="text-slate-700 font-medium">{docId}.pdf</span>
                   </td>
-                  <td className="p-4">
-                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Ready</span>
+                  <td className="p-6">
+                    <span className="bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Ready</span>
                   </td>
                 </tr>
               ))}

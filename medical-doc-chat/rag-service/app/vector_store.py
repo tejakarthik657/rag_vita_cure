@@ -1,13 +1,19 @@
 import faiss
 import pickle
 import numpy as np
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+INDEX_PATH = BASE_DIR / "index.faiss"
+PKL_PATH = BASE_DIR / "docs.pkl"
+
 
 def search_context(query_vec, doc_id, k=5):
     try:
-        index = faiss.read_index("index.faiss")
-        with open("docs.pkl", "rb") as f:
+        index = faiss.read_index(str(INDEX_PATH))
+        with open(PKL_PATH, "rb") as f:
             all_chunks = pickle.load(f)
-    except:
+    except Exception:
         return []
 
     # Search the whole index
