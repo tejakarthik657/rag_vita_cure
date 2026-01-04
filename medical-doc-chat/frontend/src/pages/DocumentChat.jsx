@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/api';
 
 export default function DocumentChat() {
   const { docId } = useParams();
   const navigate = useNavigate();
+  const messagesEndRef = useRef(null);
   const [messages, setMessages] = useState([
     { role: 'ai', text: `Hello. I am ready to answer questions regarding "${docId.replace(/_/g, ' ')}".` }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -51,18 +56,28 @@ export default function DocumentChat() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={i} className={`flex gap-4 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+              m.role === 'user' ? 'bg-indigo-100 text-indigo-600' : 'bg-teal-100 text-teal-600'
+            }`}>
+              <span className="material-symbols-outlined text-sm">
+                {m.role === 'user' ? 'person' : 'smart_toy'}
+              </span>
+            </div>
             <div className={`max-w-2xl p-5 rounded-3xl shadow-sm ${
               m.role === 'user' 
-                ? 'bg-indigo-500 text-white rounded-br-none' 
-                : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none'
+                ? 'bg-indigo-600 text-white rounded-tr-none' 
+                : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none'
             }`}>
-              <p className="text-sm leading-relaxed">{m.text}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.text}</p>
             </div>
           </div>
         ))}
         {loading && (
-          <div className="flex justify-start">
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-sm">smart_toy</span>
+            </div>
             <div className="bg-white p-4 rounded-3xl rounded-bl-none border border-slate-100 shadow-sm">
               <div className="flex gap-2">
                 <div className="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></div>
@@ -72,18 +87,25 @@ export default function DocumentChat() {
             </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input area */}
       <div className="p-6 bg-white/80 backdrop-blur-md border-t border-slate-100">
         <div className="max-w-4xl mx-auto">
           <div className="flex gap-3 mb-3">
-            <input 
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all"
+            <textarea 
+              rows={1}
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all resize-none"
               placeholder="Ask a question about this document..."
               value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
               disabled={loading}
             />
             <button 
