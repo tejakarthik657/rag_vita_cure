@@ -5,30 +5,61 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
     app_name: str = Field("Medical RAG Service")
     host: str = Field("0.0.0.0")
     port: int = Field(8000)
 
+    # -----------------------------
+    # Ollama configuration
+    # -----------------------------
     ollama_url: str = Field("http://localhost:11434/api/generate")
     ollama_model: str = Field("mistral-nemo")
-    # Large models on CPU can take 30-60s; raise default timeout to avoid premature read timeouts.
-    ollama_timeout_seconds: float = Field(120.0)
-    ollama_max_tokens: int = Field(512)
-    ollama_temperature: float = Field(0.0)
-    ollama_retry_attempts: int = Field(3)
-    ollama_retry_backoff_seconds: float = Field(0.5)
 
+    # Large models on CPU can take 30–60s; keep timeout high to avoid false failures
+    # Keep Ollama requests bounded but give enough room for occasional slow generations.
+    ollama_timeout_seconds: float = Field(60.0)
+
+    # CHANGE 1:
+    # Cap generation length aggressively.
+    # Lower values = faster inference.
+    ollama_max_tokens: int = Field(128)
+
+    ollama_temperature: float = Field(0.0)
+    ollama_retry_attempts: int = Field(2)
+    ollama_retry_backoff_seconds: float = Field(1.0)
+
+    # -----------------------------
+    # Embedding configuration
+    # -----------------------------
     embedding_model: str = Field("all-mpnet-base-v2")
 
+    # CHANGE 2 (CRITICAL FIX):
+    # Explicit device selection for embeddings.
+    # Required by embeddings.py to avoid AttributeError.
+    # Valid values: "cpu", "cuda"
+    embedding_device: str = Field("cpu")
+
+    # -----------------------------
+    # Vector store paths
+    # -----------------------------
     index_path: Path = Field(Path("index.faiss"))
     docs_path: Path = Field(Path("docs.pkl"))
 
-    retrieval_top_k: int = Field(4)
-    retrieval_fetch_k: int = Field(20)
+    # -----------------------------
+    # Retrieval tuning
+    # -----------------------------
+    retrieval_top_k: int = Field(3)
+    retrieval_fetch_k: int = Field(15)
     retrieval_min_score: float = Field(0.0)
 
+    # -----------------------------
+    # Input validation limits
+    # -----------------------------
     max_question_length: int = Field(1000)
     max_document_id_length: int = Field(128)
 
@@ -47,6 +78,9 @@ class Settings(BaseSettings):
         return v
 
 
-@lru_cache()
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    return Settings()  # type: ignore[arg-type]
+    # CHANGE 3:
+    # Cache settings once per process.
+    # Prevents repeated env parsing and object creation.
+    return Settings()

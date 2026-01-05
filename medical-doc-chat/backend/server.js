@@ -3,12 +3,15 @@ import cors from 'cors';
 import axios from 'axios';
 import multer from 'multer';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PYTHON_URL = "http://localhost:8000";
+const PYTHON_URL = process.env.PYTHON_URL || "http://localhost:8001";
 
 // 1. Admin Auth Middleware (Hardcoded V1)
 const adminAuth = (req, res, next) => {
@@ -65,7 +68,7 @@ app.post("/api/chat", async (req, res) => {
     const response = await axios.post(`${PYTHON_URL}/query`, {
         document_id: documentId,
         question: question
-    }, { timeout: 120000 }); // 120,000ms = 2 minutes for local LLM
+    }, { timeout: 300000 }); // 300s to allow first-call warmup of embeddings/LLM
     res.json(response.data);
 });
 
