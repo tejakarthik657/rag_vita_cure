@@ -33,9 +33,18 @@ export default function DocumentList() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-6 py-14">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold mb-3 text-slate-800">Select a Document</h1>
-          <p className="text-slate-500 text-lg">Responses stay grounded in the document you choose.</p>
+        <div className="mb-10 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold mb-3 text-slate-800">Select a Document</h1>
+            <p className="text-slate-500 text-lg">Responses stay grounded in the document you choose.</p>
+          </div>
+          <Link
+            to="/general-chat"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold px-6 py-3 rounded-2xl shadow-lg shadow-amber-200 hover:shadow-amber-300 transition-all hover:scale-105 active:scale-100"
+          >
+            <span className="material-symbols-outlined text-lg">chat_bubble</span>
+            General Chat
+          </Link>
         </div>
 
         {error && (

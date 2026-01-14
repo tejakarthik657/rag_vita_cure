@@ -22,12 +22,12 @@ class Settings(BaseSettings):
 
     # Large models on CPU can take 30–60s; keep timeout high to avoid false failures
     # Keep Ollama requests bounded but give enough room for occasional slow generations.
-    ollama_timeout_seconds: float = Field(60.0)
+    ollama_timeout_seconds: float = Field(120.0)
 
     # CHANGE 1:
     # Cap generation length aggressively.
     # Lower values = faster inference.
-    ollama_max_tokens: int = Field(128)
+    ollama_max_tokens: int = Field(100)
 
     ollama_temperature: float = Field(0.0)
     ollama_retry_attempts: int = Field(2)

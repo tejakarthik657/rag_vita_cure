@@ -6,6 +6,7 @@ export const api = {
   // User Routes
   getDocuments: () => axios.get(`${BASE_URL}/documents`),
   chat: (documentId, question) => axios.post(`${BASE_URL}/chat`, { documentId, question }),
+  generalChat: (question) => axios.post(`${BASE_URL}/chat/general`, { question }),
   
   // Admin Routes
   uploadFile: (file, creds) => {

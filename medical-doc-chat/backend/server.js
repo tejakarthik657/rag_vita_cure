@@ -72,4 +72,16 @@ app.post("/api/chat", async (req, res) => {
     res.json(response.data);
 });
 
+// General Chat (no document grounding)
+app.post("/api/chat/general", async (req, res) => {
+    const { question } = req.body;
+    try {
+        const response = await axios.post(`${PYTHON_URL}/chat/general`, { question }, { timeout: 120000 });
+        res.json(response.data);
+    } catch (err) {
+        console.error("General chat failed", err);
+        res.status(503).json({ error: "General chat service unavailable" });
+    }
+});
+
 app.listen(4000, () => console.log("Backend running on 4000"));

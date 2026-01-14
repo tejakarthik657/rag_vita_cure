@@ -9,6 +9,7 @@ from .config import Settings, get_settings
 from .ingest_logic import run_ingestion
 from .logging_utils import configure_logging, get_logger
 from .rag_pipeline import run_rag_pipeline
+from .ollama_client import generate_answer
 
 # CHANGE 1:
 # Logging configuration stays the same — this is correct.
@@ -52,6 +53,44 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources_used: int
+
+
+class GeneralChatRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=1000)
+
+
+class GeneralChatResponse(BaseModel):
+    answer: str
+
+
+@app.post("/chat/general", response_model=GeneralChatResponse)
+async def general_chat(
+    req: GeneralChatRequest,
+    settings: Settings = Depends(get_settings),
+):
+    if len(req.question) > settings.max_question_length:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Question is too long.",
+        )
+
+    prompt = (
+        "[INST] You are a concise and helpful medical assistant. "
+        "Provide short, clear answers (3-5 sentences) and avoid medical diagnoses or prescriptions.\n"
+        f"Question:\n{req.question}\n"
+        "[/INST]"
+    )
+
+    try:
+        answer = await generate_answer(prompt)
+        return {"answer": answer}
+
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.exception("General chat failed")
+        raise HTTPException(
+            status_code=503,
+            detail="LLM is unavailable right now. Please try again shortly.",
+        ) from exc
 
 
 @app.post("/query", response_model=ChatResponse)

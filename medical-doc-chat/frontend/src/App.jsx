@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import DocumentList from './pages/DocumentList';
 import DocumentChat from './pages/DocumentChat';
+import GeneralChat from './pages/GeneralChat';
 import AdminLogin from './pages/AdminLogin';
 import AdminUpload from './pages/AdminUpload';
 import SafetyState from './pages/SafetyState';
@@ -11,6 +12,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<DocumentList />} />
         <Route path="/chat/:docId" element={<DocumentChat />} />
+        <Route path="/general-chat" element={<GeneralChat />} />
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/upload" element={<AdminUpload />} />
         <Route path="/safety" element={<SafetyState />} />
